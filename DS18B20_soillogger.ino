@@ -3,7 +3,7 @@
 // and serial plotter:
 //#define SILENT
 #ifndef SILENT
-//#define DEBUG
+#define DEBUG
 #ifndef DEBUG
 #define PLOTTER
 #endif
@@ -38,6 +38,7 @@ RTC_PCF8523 RTC;
 unsigned long startShutDownPeriod = 0; // to mark the start of current shutDownPeriod
 const unsigned long shutDownPeriod = 900000;
 
+// set global sensor resolution to 9, 10, 11, or 12 bits
 const int8_t resolution = 12;
 
 const int chipSelect = 10; // for SD card SPI
@@ -66,6 +67,7 @@ void error(char *str)
   and begins data logfile, writing a header line.
   ------------------------------------------------------------------------------
 */
+
 void setup() {
 
   wdt_disable();  // Disable the watchdog and wait for more than 2 seconds
@@ -96,9 +98,10 @@ void setup() {
   DPRINTLN("------------------------------------------------------------");
   DPRINTLN("           DEBUG PRINTING TO SERIAL IS ON!");
   DPRINTLN("------------------------------------------------------------");
-
   DPRINT("Initializing SD card...");
+  
   wdt_reset();
+  
   // make sure that the default chip select pin is set to
   // output, even if you don't use it:
   pinMode(10, OUTPUT);
@@ -107,8 +110,13 @@ void setup() {
   if (!SD.begin(chipSelect)) {
     error("Card failed, or not present");
   }
-  DPRINTLN("DONE.");
+  
+  DPRINTLN("Done.");
+  
   wdt_reset();
+
+  DPRINT("Creating a new file...");
+  
   // create a new file
   char filename[] = "LOGGER00.CSV";
   for (uint8_t i = 0; i < 100; i++) {
@@ -131,9 +139,10 @@ void setup() {
 
   /*------------------------------------------------------------------------------
     Initializes the real time clock,
-    also sets time if battery has ran out.
+    and sets time to system time if RTC has lost power.
     ------------------------------------------------------------------------------
   */
+  
   wdt_reset();
   DPRINT("Initializing RTC...");
 
@@ -158,7 +167,7 @@ void setup() {
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
-    writing header line to logfile
+    writing header line to file
     ------------------------------------------------------------------------------
   */
 
@@ -178,8 +187,6 @@ void setup() {
   sensor_one.begin();
   sensor_two.begin();
 
-  // set global resolution to 9, 10, 11, or 12 bits
-  // void setResolution(uint8_t);
   sensor_one.setResolution(resolution);
 
   sensor_one.requestTemperatures();
@@ -197,7 +204,6 @@ void setup() {
   DPRINTLN("...Done.");
 
   startShutDownPeriod = millis() - shutDownPeriod; // start shutdownperiod, but start measurements in loop() right away
-
 
 }
 
