@@ -3,7 +3,7 @@
 // and serial plotter:
 //#define SILENT
 #ifndef SILENT
-#define DEBUG
+//#define DEBUG
 #ifndef DEBUG
 #define PLOTTER
 #endif
@@ -61,7 +61,7 @@ void error(char *str)
 }
 
 /*------------------------------------------------------------------------------
-  Sets watchdog timer, begins serial connection, 
+  Sets watchdog timer, begins serial connection,
   SD & RTC intialisation,
   and begins data logfile, writing a header line.
   ------------------------------------------------------------------------------
@@ -262,6 +262,12 @@ void loop(void) {
 
     DPRINT("temp2: ");
     DPRINTLN(temp2, 2);
+
+#ifdef PLOTTER
+    Serial.print(temp1);
+    Serial.print(",");
+    Serial.println(temp2);
+#endif
 
     logfile.flush();
 
