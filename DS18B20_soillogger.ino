@@ -35,6 +35,7 @@ DallasTemperature sensor_two(&oneWire_two);
 RTC_PCF8523 RTC;
 
 //  15 minutes = 900000 milliseconds
+//  1 minute = 6000 milliseconds
 unsigned long startShutDownPeriod = 0; // to mark the start of current shutDownPeriod
 const unsigned long shutDownPeriod = 900000;
 
