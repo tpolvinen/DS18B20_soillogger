@@ -1,3 +1,4 @@
+// This is a Magit test.
 // To quickly switch on and off all Serial.prints,
 // or choose between prints to serial monitor
 // and serial plotter:
