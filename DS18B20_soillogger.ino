@@ -1,4 +1,3 @@
-// This is a Magit test.
 // To quickly switch on and off all Serial.prints,
 // or choose between prints to serial monitor
 // and serial plotter:
@@ -96,25 +95,19 @@ void setup() {
   wdt_reset();
   DPRINTLN();
   DPRINT("Initializing SD card...");
-  
+
   wdt_reset();
-  
   // make sure that the default chip select pin is set to
   // output, even if you don't use it:
   pinMode(10, OUTPUT);
-
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
     error("Card failed, or not present");
   }
-  
   DPRINTLN("Done.");
-  
-  wdt_reset();
 
+  wdt_reset();
   DPRINT("Creating a new file...");
-  
-  // create a new file
   char filename[] = "LOGGER00.CSV";
   for (uint8_t i = 0; i < 100; i++) {
     filename[6] = i / 10 + '0';
@@ -125,11 +118,9 @@ void setup() {
       break;  // leave the loop!
     }
   }
-
   if (! logfile) {
     error("couldnt create file");
   }
-
   DPRINTLN("Done.");
   DPRINT("Logging to: ");
   DPRINTLN(filename);
@@ -139,28 +130,18 @@ void setup() {
     and sets time to system time if RTC has lost power.
     ------------------------------------------------------------------------------
   */
-  
+
   wdt_reset();
   DPRINT("Initializing RTC...");
-
   Wire.begin();
-
   if (!RTC.begin()) {
     logfile.println("RTC failed");
     error("RTC failed");
     logfile.flush();
     while (1);
   }
-
-  if (RTC.lostPower()) {
-    error("RTC lost power, lets set the time!");
-    // following line sets the RTC to the date & time this sketch was compiled
-    RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  }
-
+  // following line sets the RTC to the date & time this sketch was compiled
+  RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
@@ -179,22 +160,17 @@ void setup() {
   */
 
   wdt_reset();
-
   float temperature;
   sensor_one.begin();
   sensor_two.begin();
-
   sensor_one.setResolution(resolution);
-
   sensor_one.requestTemperatures();
   DPRINT("Initializing sensor_one... temperature: ");
   DPRINT(sensor_one.getTempCByIndex(0));
   DPRINTLN("...Done.");
 
   wdt_reset();
-
   sensor_two.setResolution(resolution);
-
   sensor_two.requestTemperatures();
   DPRINT("Initializing sensor_two... temperature: ");
   DPRINT(sensor_two.getTempCByIndex(0));
@@ -218,15 +194,12 @@ void loop(void) {
     digitalWrite(LED_BUILTIN, HIGH);
 
     wdt_reset();
-
     // offsetting the measurement duration from shut down period
     startShutDownPeriod = millis() ;
-
     sensor_one.requestTemperatures();
     sensor_two.requestTemperatures();
 
     wdt_reset();
-
     // fetch the time
     now = RTC.now();
     // log time
@@ -236,16 +209,13 @@ void loop(void) {
     thisHour = now.hour();
     thisMinute = now.minute();
     thisSecond = now.second();
-
     sprintf_P(DateAndTimeString, PSTR("%4d-%02d-%02dT%d:%02d:%02d"), thisYear, thisMonth, thisDay, thisHour, thisMinute, thisSecond);
     logfile.print(DateAndTimeString);
     logfile.print(",");
-
     DPRINT(DateAndTimeString);
     DPRINT(",");
-
+    
     wdt_reset();
-
     temp1 = sensor_one.getTempCByIndex(0);
     logfile.print(temp1);
     logfile.print(",");
@@ -253,7 +223,6 @@ void loop(void) {
     DPRINT(",");
 
     wdt_reset();
-
     temp2 = sensor_two.getTempCByIndex(0);
     logfile.println(temp2);
     DPRINTLN(temp2, 2);
@@ -265,7 +234,6 @@ void loop(void) {
 #endif
 
     logfile.flush();
-
     digitalWrite(LED_BUILTIN, LOW);
 
   }
