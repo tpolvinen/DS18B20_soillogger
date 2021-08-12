@@ -94,11 +94,6 @@ void setup() {
 
   wdt_reset();
   DPRINTLN();
-  DPRINTLN("------------------------------------------------------------");
-  DPRINTLN("          Simple Soil Logger for two DS18B20's!");
-  DPRINTLN("------------------------------------------------------------");
-  DPRINTLN("           DEBUG PRINTING TO SERIAL IS ON!");
-  DPRINTLN("------------------------------------------------------------");
   DPRINT("Initializing SD card...");
   
   wdt_reset();
@@ -226,10 +221,8 @@ void loop(void) {
     // offsetting the measurement duration from shut down period
     startShutDownPeriod = millis() ;
 
-    DPRINT("Requesting temperatures...");
     sensor_one.requestTemperatures();
     sensor_two.requestTemperatures();
-    DPRINTLN("Done");
 
     wdt_reset();
 
@@ -243,31 +236,25 @@ void loop(void) {
     thisMinute = now.minute();
     thisSecond = now.second();
 
-    sprintf_P(DateAndTimeString, PSTR("%4d-%02d-%02d %d:%02d:%02d"), thisYear, thisMonth, thisDay, thisHour, thisMinute, thisSecond);
+    sprintf_P(DateAndTimeString, PSTR("%4d-%02d-%02dT%d:%02d:%02d"), thisYear, thisMonth, thisDay, thisHour, thisMinute, thisSecond);
     logfile.print(DateAndTimeString);
     logfile.print(",");
 
     DPRINT(DateAndTimeString);
-    DPRINT(", ");
+    DPRINT(",");
 
     wdt_reset();
 
     temp1 = sensor_one.getTempCByIndex(0);
-
     logfile.print(temp1);
     logfile.print(",");
-
-    DPRINT("temp1: ");
     DPRINT(temp1, 2);
-    DPRINT(", ");
+    DPRINT(",");
 
     wdt_reset();
 
     temp2 = sensor_two.getTempCByIndex(0);
-
     logfile.println(temp2);
-
-    DPRINT("temp2: ");
     DPRINTLN(temp2, 2);
 
 #ifdef PLOTTER
