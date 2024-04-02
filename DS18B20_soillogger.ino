@@ -141,7 +141,10 @@ void setup() {
     while (1);
   }
   // following line sets the RTC to the date & time this sketch was compiled
-  RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  // This line sets the RTC with an explicit date & time, for example to set
+  // April 2, 2024 at 15:27:30 you would call:
+  RTC.adjust(DateTime(2024, 4, 2, 15, 27, 30));
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
@@ -214,7 +217,7 @@ void loop(void) {
     logfile.print(",");
     DPRINT(DateAndTimeString);
     DPRINT(",");
-    
+
     wdt_reset();
     temp1 = sensor_one.getTempCByIndex(0);
     logfile.print(temp1);
