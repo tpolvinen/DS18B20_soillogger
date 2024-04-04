@@ -1,7 +1,7 @@
 // To quickly switch on and off all Serial.prints,
 // or choose between prints to serial monitor
 // and serial plotter:
-//#define SILENT
+#define SILENT
 #ifndef SILENT
 #define DEBUG
 #ifndef DEBUG
@@ -32,21 +32,44 @@ OneWire oneWire_two(ONE_WIRE_BUS4);
 DallasTemperature sensor_one(&oneWire_one);
 DallasTemperature sensor_two(&oneWire_two);
 
+unsigned long currentMillis;
+unsigned long startClockCheckInterval = 0;
+const unsigned long clockCheckInterval = 1000;
+
 RTC_PCF8523 RTC;
 
-//  15 minutes = 900000 milliseconds
-//  1 minute = 6000 milliseconds
-unsigned long startShutDownPeriod = 0; // to mark the start of current shutDownPeriod
-const unsigned long shutDownPeriod = 900000;
+DateTime now;
+unsigned long startMeasurementInterval = 0; // to mark the start of current measurementInterval in RTC unixtime
+const unsigned long measurementInterval = 30; // seconds, measured in RTC unixtime
+uint16_t thisYear;
+int8_t thisMonth, thisDay, thisHour, thisMinute, thisSecond;
 
 // set global sensor resolution to 9, 10, 11, or 12 bits
 const int8_t resolution = 12;
 
 const int chipSelect = 10; // for SD card SPI
 
-File logfile;
+File datafile;
 
 char DateAndTimeString[20]; //19 digits plus the null char
+
+float temp1;
+float temp2;
+
+const int led1Pin = 5;
+const int led2Pin = 6;
+bool led1State = false;
+bool led2State = false;
+unsigned long startLed1Timer = 0;
+unsigned long startLed2Timer = 0;
+const unsigned long ledTimer = 1000;
+
+const int buttonPin = 7;
+int currentButtonState;
+int lastButtonState = HIGH;   // the previous reading from the input pin
+bool writeButtonPress = false;
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
 /*------------------------------------------------------------------------------
   error
@@ -65,7 +88,7 @@ void error(char *str)
 /*------------------------------------------------------------------------------
   Sets watchdog timer, begins serial connection,
   SD & RTC intialisation,
-  and begins data logfile, writing a header line.
+  and begins data datafile, writing a header line.
   ------------------------------------------------------------------------------
 */
 
@@ -76,6 +99,10 @@ void setup() {
   wdt_enable(WDTO_8S);
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  // initialize the pushbutton pin as an pull-up input
+  // the pull-up input pin will be HIGH when the switch is open and LOW when the switch is closed.
+  pinMode(buttonPin, INPUT_PULLUP);
 
   Serial.begin(115200);
   while (!Serial) {
@@ -114,11 +141,11 @@ void setup() {
     filename[7] = i % 10 + '0';
     if (! SD.exists(filename)) {
       // only open a new file if it doesn't exist
-      logfile = SD.open(filename, FILE_WRITE);
+      datafile = SD.open(filename, FILE_WRITE);
       break;  // leave the loop!
     }
   }
-  if (! logfile) {
+  if (! datafile) {
     error("couldnt create file");
   }
   DPRINTLN("Done.");
@@ -127,7 +154,11 @@ void setup() {
 
   /*------------------------------------------------------------------------------
     Initializes the real time clock,
-    and sets time to system time if RTC has lost power.
+    and sets time to system time if RTC has lost power,
+    IF relevant command uncommented!
+    After re-setting the RTC to correct time,
+    COMMENT ALL RTC.adjust COMMANDS!
+    Otherwise it might re-set clock on each restart. Maybe. Don't know.
     ------------------------------------------------------------------------------
   */
 
@@ -135,16 +166,16 @@ void setup() {
   DPRINT("Initializing RTC...");
   Wire.begin();
   if (!RTC.begin()) {
-    logfile.println("RTC failed");
+    datafile.println("RTC failed");
     error("RTC failed");
-    logfile.flush();
+    datafile.flush();
     while (1);
   }
   // following line sets the RTC to the date & time this sketch was compiled
-  //RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  // RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
-  // April 2, 2024 at 15:27:30 you would call:
-  RTC.adjust(DateTime(2024, 4, 2, 15, 27, 30));
+  // April 3, 2024 at 11:19:30 you would call:
+  // RTC.adjust(DateTime(2024, 4, 4, 20, 14, 45));
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
@@ -153,12 +184,13 @@ void setup() {
   */
 
   wdt_reset();
-  logfile.println("datetime,temp1,temp2");
-  DPRINTLN("datetime,temp1,temp2");
+  datafile.println("datetime,temp1,temp2,note");
+  DPRINTLN("datetime,temp1,temp2,note");
 
   /*------------------------------------------------------------------------------
     Initializes two temperature sensors,
     gets one set of measurement and prints them.
+    Does not write data to a file.
     ------------------------------------------------------------------------------
   */
 
@@ -179,32 +211,71 @@ void setup() {
   DPRINT(sensor_two.getTempCByIndex(0));
   DPRINTLN("...Done.");
 
-  startShutDownPeriod = millis() - shutDownPeriod; // start shutdownperiod, but start measurements in loop() right away
+  // fetch the time
+  now = RTC.now();
+  // start measurementInterval and set it back by interval time -> starts measurements in loop() right away
+  startMeasurementInterval = now.unixtime() - measurementInterval;
+
+  //set clockCheckInterval
+  startClockCheckInterval = millis();
 
 }
 
 void loop(void) {
 
   wdt_reset();
-  if (millis() - startShutDownPeriod >= shutDownPeriod) {
 
-    float temp1;
-    float temp2;
-    uint16_t thisYear;
-    int8_t thisMonth, thisDay, thisHour, thisMinute, thisSecond;
-    DateTime now;
+  int reading = digitalRead(buttonPin);
 
-    digitalWrite(LED_BUILTIN, HIGH);
+  currentMillis = millis();
+
+  if (reading != lastButtonState) {
+    lastDebounceTime = currentMillis;
+    currentButtonState = reading;
+  }
+
+  if (currentMillis - lastDebounceTime >= debounceDelay) {
+    if (lastButtonState == LOW && currentButtonState == HIGH) {
+      writeButtonPress = true;
+      DPRINTLN("Button press set to true.");
+      led1State = true;
+      startLed1Timer = currentMillis;
+      led2State = true;
+      startLed2Timer = currentMillis;
+    }
+    lastButtonState = currentButtonState;
+  }
+  
+  if (currentMillis - startLed1Timer >= ledTimer) {
+    led1State = false;
+  }
+  if (currentMillis - startLed2Timer >= ledTimer) {
+    led2State = false;
+  }
+
+  digitalWrite(led1Pin, led1State);
+  digitalWrite(led2Pin, led2State);
+
+  wdt_reset();
+
+  if (currentMillis - startClockCheckInterval >= clockCheckInterval) {
+    startClockCheckInterval = currentMillis;
+    // fetch the time
+    now = RTC.now();
+  }
+
+  if (now.unixtime() - startMeasurementInterval >= measurementInterval) {
+
+    startMeasurementInterval = now.unixtime();
+
+    digitalWrite(led1Pin, HIGH);
 
     wdt_reset();
-    // offsetting the measurement duration from shut down period
-    startShutDownPeriod = millis() ;
+    // offsetting the measurement duration from measurement interval (?)
     sensor_one.requestTemperatures();
     sensor_two.requestTemperatures();
 
     wdt_reset();
-    // fetch the time
-    now = RTC.now();
     // log time
     thisYear = now.year();
     thisMonth = now.month();
@@ -213,22 +284,33 @@ void loop(void) {
     thisMinute = now.minute();
     thisSecond = now.second();
     sprintf_P(DateAndTimeString, PSTR("%4d-%02d-%02dT%d:%02d:%02d"), thisYear, thisMonth, thisDay, thisHour, thisMinute, thisSecond);
-    logfile.print(DateAndTimeString);
-    logfile.print(",");
+    datafile.print(DateAndTimeString);
+    datafile.print(",");
     DPRINT(DateAndTimeString);
     DPRINT(",");
 
     wdt_reset();
     temp1 = sensor_one.getTempCByIndex(0);
-    logfile.print(temp1);
-    logfile.print(",");
+    datafile.print(temp1);
+    datafile.print(",");
     DPRINT(temp1, 2);
     DPRINT(",");
 
     wdt_reset();
     temp2 = sensor_two.getTempCByIndex(0);
-    logfile.println(temp2);
-    DPRINTLN(temp2, 2);
+    datafile.print(temp2);
+    datafile.print(",");
+    DPRINT(temp2, 2);
+    DPRINT(",");
+
+    if (writeButtonPress) {
+      datafile.println("Kissaa rapsutettu!");
+      DPRINTLN("Kissaa rapsutettu!");
+      writeButtonPress = false;
+    } else {
+      datafile.println("");
+      DPRINTLN("");
+    }
 
 #ifdef PLOTTER
     Serial.print(temp1);
@@ -236,9 +318,8 @@ void loop(void) {
     Serial.println(temp2);
 #endif
 
-    logfile.flush();
-    digitalWrite(LED_BUILTIN, LOW);
-
+    datafile.flush();
+    digitalWrite(led1Pin, LOW);
   }
 
 }
