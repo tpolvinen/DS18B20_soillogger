@@ -174,8 +174,8 @@ void setup() {
   // following line sets the RTC to the date & time this sketch was compiled
   // RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
-  // April 3, 2024 at 11:19:30 you would call:
-  // RTC.adjust(DateTime(2024, 4, 4, 20, 14, 45));
+  // April 5, 2024 at 9:25:30 you would call:
+  // RTC.adjust(DateTime(2024, 4, 5, 9, 25, 30));
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
