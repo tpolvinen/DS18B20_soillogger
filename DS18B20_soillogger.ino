@@ -1,8 +1,10 @@
 // To quickly switch on and off all Serial.prints,
 // or choose between prints to serial monitor
 // and serial plotter:
-#define SILENT
-#ifndef SILENT
+//#define SILENT
+//#ifndef SILENT
+#define CLOCKTEST
+#ifndef CLOCKTEST
 #define DEBUG
 #ifndef DEBUG
 #define PLOTTER
@@ -112,7 +114,11 @@ void setup() {
   Wire.begin();
 
 #ifdef SILENT
-  Serial.println("The rest is silence.");
+  Serial.println("Silent mode on.");
+#endif
+
+#ifdef CLOCKTEST
+  Serial.println("Clock test mode on.");
 #endif
 
 #ifdef PLOTTER
@@ -169,13 +175,45 @@ void setup() {
     datafile.println("RTC failed");
     error("RTC failed");
     datafile.flush();
-    while (1);
+    while (1) delay(10);
   }
   // following line sets the RTC to the date & time this sketch was compiled
   // RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
-  // April 5, 2024 at 9:25:30 you would call:
-  // RTC.adjust(DateTime(2024, 4, 5, 9, 25, 30));
+  // April 8, 2024 at 9:25:30 you would call:
+  // RTC.adjust(DateTime(2024, 4, 8, 11, 8, 0));
+
+  // When the RTC was stopped and stays connected to the battery, it has
+  // to be restarted by clearing the STOP bit. Let's do this to ensure
+  // the RTC is running.
+  RTC.start();
+
+  // The PCF8523 can be calibrated for:
+  //        - Aging adjustment
+  //        - Temperature compensation
+  //        - Accuracy tuning
+  // The offset mode to use, once every two hours or once every minute.
+  // The offset Offset value from -64 to +63. See the Application Note for calculation of offset values.
+  // https://www.nxp.com/docs/en/application-note/AN11247.pdf
+  // The deviation in parts per million can be calculated over a period of observation. Both the drift (which can be negative)
+  // and the observation period must be in seconds. For accuracy the variation should be observed over about 1 week.
+  // Note: any previous calibration should cancelled prior to any new observation period.
+  // Example - RTC gaining 43 seconds in 1 week
+  float drift = 0; //43; // seconds plus or minus over oservation period - set to 0 to cancel previous calibration.
+  float period_sec = (7 * 86400);  // total obsevation period in seconds (86400 = seconds in 1 day:  7 days = (7 * 86400) seconds )
+  float deviation_ppm = (drift / period_sec * 1000000); //  deviation in parts per million (μs)
+  float drift_unit = 4.34; // use with offset mode PCF8523_TwoHours
+  // float drift_unit = 4.069; //For corrections every min the drift_unit is 4.069 ppm (use with offset mode PCF8523_OneMinute)
+  int offset = round(deviation_ppm / drift_unit);
+  // RTC.calibrate(PCF8523_TwoHours, offset); // Un-comment to perform calibration once drift (seconds) and observation period (seconds) are correct
+  // RTC.calibrate(PCF8523_TwoHours, 0); // Un-comment to cancel previous calibration
+  
+#ifdef CLOCKTEST
+  Serial.print("Offset is "); Serial.println(offset); // Print to control offset
+#endif
+
+
+
   DPRINTLN("Done.");
 
   /*------------------------------------------------------------------------------
@@ -245,7 +283,7 @@ void loop(void) {
     }
     lastButtonState = currentButtonState;
   }
-  
+
   if (currentMillis - startLed1Timer >= ledTimer) {
     led1State = false;
   }
@@ -288,6 +326,10 @@ void loop(void) {
     datafile.print(",");
     DPRINT(DateAndTimeString);
     DPRINT(",");
+
+#ifdef CLOCKTEST
+    Serial.println(DateAndTimeString);
+#endif
 
     wdt_reset();
     temp1 = sensor_one.getTempCByIndex(0);
