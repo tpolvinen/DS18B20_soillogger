@@ -181,7 +181,7 @@ void setup() {
   // RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
   // April 8, 2024 at 9:25:30 you would call:
-  // RTC.adjust(DateTime(2024, 4, 8, 11, 8, 0));
+  // RTC.adjust(DateTime(2024, 4, 15, 13, 22, 0));
 
   // When the RTC was stopped and stays connected to the battery, it has
   // to be restarted by clearing the STOP bit. Let's do this to ensure
@@ -199,8 +199,8 @@ void setup() {
   // and the observation period must be in seconds. For accuracy the variation should be observed over about 1 week.
   // Note: any previous calibration should cancelled prior to any new observation period.
   // Example - RTC gaining 43 seconds in 1 week
-  float drift = 0; //43; // seconds plus or minus over oservation period - set to 0 to cancel previous calibration.
-  float period_sec = (7 * 86400);  // total obsevation period in seconds (86400 = seconds in 1 day:  7 days = (7 * 86400) seconds )
+  float drift = 54; //43; // seconds plus or minus over oservation period - set to 0 to cancel previous calibration.
+  float period_sec = 598222; //(7 * 86400);  // total obsevation period in seconds (86400 = seconds in 1 day:  7 days = (7 * 86400) seconds )
   float deviation_ppm = (drift / period_sec * 1000000); //  deviation in parts per million (μs)
   float drift_unit = 4.34; // use with offset mode PCF8523_TwoHours
   // float drift_unit = 4.069; //For corrections every min the drift_unit is 4.069 ppm (use with offset mode PCF8523_OneMinute)
