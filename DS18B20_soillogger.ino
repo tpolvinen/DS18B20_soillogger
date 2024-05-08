@@ -1,3 +1,8 @@
+// -127.00 reading means no connection
+// 85.00 reading means default value after power on
+// If sensor replacement won't fix it, see https://randomnerdtutorials.com/esp32-ds18b20-temperature-arduino-ide/
+// and refactor the program. It also may need delays between sensor readings.
+
 // To quickly switch on and off all Serial.prints,
 // or choose between prints to serial monitor
 // and serial plotter:
@@ -35,6 +40,7 @@ DallasTemperature sensor_one(&oneWire_one);
 DallasTemperature sensor_two(&oneWire_two);
 
 unsigned long currentMillis;
+unsigned long clockToMeasurementMillis;
 unsigned long startClockCheckInterval = 0;
 const unsigned long clockCheckInterval = 1000;
 
@@ -181,7 +187,7 @@ void setup() {
   // RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
   // April 8, 2024 at 9:25:30 you would call:
-  // RTC.adjust(DateTime(2024, 4, 15, 13, 22, 0));
+  // RTC.adjust(DateTime(2024, 5, 8, 12, 0, 0));
 
   // When the RTC was stopped and stays connected to the battery, it has
   // to be restarted by clearing the STOP bit. Let's do this to ensure
@@ -207,7 +213,7 @@ void setup() {
   int offset = round(deviation_ppm / drift_unit);
   // RTC.calibrate(PCF8523_TwoHours, offset); // Un-comment to perform calibration once drift (seconds) and observation period (seconds) are correct
   // RTC.calibrate(PCF8523_TwoHours, 0); // Un-comment to cancel previous calibration
-  
+
 #ifdef CLOCKTEST
   Serial.print("Offset is "); Serial.println(offset); // Print to control offset
 #endif
@@ -300,6 +306,7 @@ void loop(void) {
     startClockCheckInterval = currentMillis;
     // fetch the time
     now = RTC.now();
+    clockToMeasurementMillis = millis();
   }
 
   if (now.unixtime() - startMeasurementInterval >= measurementInterval) {
@@ -333,15 +340,19 @@ void loop(void) {
 
     wdt_reset();
     temp1 = sensor_one.getTempCByIndex(0);
+    temp2 = sensor_two.getTempCByIndex(0);
+    clockToMeasurementMillis = millis() - clockToMeasurementMillis;
+#ifdef CLOCKTEST
+    Serial.print("clock to measurement ms: ");
+    Serial.println(clockToMeasurementMillis);
+#endif
+
     datafile.print(temp1);
+    datafile.print(",");
+    datafile.print(temp2);
     datafile.print(",");
     DPRINT(temp1, 2);
     DPRINT(",");
-
-    wdt_reset();
-    temp2 = sensor_two.getTempCByIndex(0);
-    datafile.print(temp2);
-    datafile.print(",");
     DPRINT(temp2, 2);
     DPRINT(",");
 
